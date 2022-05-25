@@ -2,6 +2,7 @@
 #define _RPC_PROTOCOL_H_
 
 #include <cstddef>
+#include <memory>
 #include "util.h"
 
 namespace rpc
@@ -28,6 +29,29 @@ namespace rpc
         static constexpr Size maxSize = (~0);
         static constexpr Size bodySize = maxSize - headerLength;
 
+        static bool IsSizeTypeUnsigned()
+        {
+            constexpr Size zero = 0;
+            Size i = -1;
+            return i > zero;
+        }
+
+        class Bytes
+        {
+        public:
+            Bytes(const char *data, Protocol::Size size) : data_(data), size_(size) {}
+            ~Bytes() {}
+
+            inline char *Data() { return data_; }
+            inline const char *Data() const { return data_; }
+            inline Protocol::Size Size() { return size_; }
+            inline const Protocol::Size Size() const { return size_; }
+
+        protected:
+            const char *data_;
+            Protocol::Size size_;
+        };
+
         template <typename Protocol::Cmd cmd, typename MessageType,
                   class MessageSizeGetter = DefaultMessageSizeGetter<MessageType, typename Protocol::Size>>
         class MessageWrapper
@@ -35,7 +59,29 @@ namespace rpc
         public:
             inline MessageType &Data() { return msg_; }
             inline const MessageType &Data() const { return msg_; }
-            inline typename Protocol::Size Size() const
+
+            operator Bytes()
+            {
+                size_ = Protocol::headerLength + GetSize();
+                cmd_ = staticCmdValue_;
+                ASSERT(size_ <= Protocol::maxSize, "total size should smaller than maxSize");
+                return Bytes(reinterpret_cast<const char *>(this), Size());
+            }
+
+            MessageType *operator->() { return &msg_; }
+            const MessageType *operator->() const { return &msg_; }
+            MessageType &operator*() { return msg_; }
+            const MessageType &operator*() const { return msg_; }
+
+        protected:
+            typename Protocol::Size size_;
+            typename Protocol::Cmd cmd_;
+            MessageType msg_;
+
+            static constexpr typename Protocol::Cmd staticCmdValue_ = cmd;
+            static constexpr MessageSizeGetter messageSizeGetter_ = MessageSizeGetter();
+
+            inline typename Protocol::Size GetSize() const
             {
                 ASSERT(IsSizeTypeUnsigned(), "Protocol::SizeType should be an unsigned type");
                 Protocol::Size size = messageSizeGetter_(msg_);
@@ -44,47 +90,21 @@ namespace rpc
                 return size;
             }
 
-            inline typename Protocol::Size Size()
-            {
-                return const_cast<const MessageWrapper &>(*this).Size();
-            }
-
-            static inline typename Protocol::Cmd Cmd()
-            {
-                return cmd_;
-            }
-
-        protected:
-            MessageType msg_;
-            static constexpr typename Protocol::Cmd cmd_ = cmd;
-            static constexpr MessageSizeGetter messageSizeGetter_ = MessageSizeGetter();
+            inline typename Protocol::Size GetSize() { return const_cast<const MessageWrapper &>(*this).Size(); }
         };
-
-        static bool IsSizeTypeUnsigned()
-        {
-            constexpr Size zero = 0;
-            Size i = -1;
-            return i > zero;
-        }
 
         class Packet
         {
         public:
             template <typename T>
-            operator const T &() const { return *reinterpret_cast<const T *>(buf_); }
-
-            template <typename T>
             operator const T() const = delete;
-
-            template <typename T>
-            operator T &()
-            {
-                cmd_ = T::Cmd();
-                return *reinterpret_cast<T *>(buf_);
-            }
-
             template <typename T>
             operator T() = delete;
+
+            template <typename T>
+            operator const T &() const { return *reinterpret_cast<const T *>(this); }
+            template <typename T>
+            operator T &() { return *reinterpret_cast<T *>(this); }
 
             inline typename Protocol::Size Size()
             {
@@ -99,8 +119,11 @@ namespace rpc
         protected:
             typename Protocol::Size size_;
             typename Protocol::Cmd cmd_;
-            char buf_[Protocol::bodySize];
+            char body_[Protocol::bodySize];
         };
+
+        using WriteBuffer = Packet;
+        using ReadBuffer = Packet;
     };
 }
 
