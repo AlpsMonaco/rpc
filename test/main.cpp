@@ -1,40 +1,76 @@
 #include <iostream>
-#include <map>
+#include <functional>
 #include <string.h>
 #include "include/rpc/protocol.h"
 
-struct Foo
-{
-    unsigned long long bar1;
-    char bar2[254];
-};
-std::map<int, int> m;
+using Protocol = rpc::Protocol<uint32_t, uint32_t>;
+// using Buffer = Protocol::Packet;
 
-struct FooSizeGetter
+struct Foo1
 {
-    size_t operator()(const Foo &foo) const
+    unsigned long long a;
+    unsigned short b;
+    char c;
+};
+
+struct Foo2
+{
+    unsigned short a;
+    char c[30];
+
+    struct SizeGetter
     {
-        static int i = 0;
-        i++;
-        std::cout << i << std::endl;
-        return sizeof(foo.bar1) + strlen(foo.bar2) + 1;
+        size_t operator()(const Foo2 &foo2) { return sizeof(foo2); }
+    };
+
+    operator int()
+    {
+        return *reinterpret_cast<int *>(c);
     }
 };
 
-using protocol = rpc::Protocol<unsigned short, unsigned short>;
+void PrintFoo2(const Foo2 &foo2, const int &b)
+{
+    std::cout << foo2.a << " " << foo2.c << std::endl;
+}
+
+void PrintInt(const int &a, const int &b)
+{
+    std::cout << a << std::endl;
+    std::cout << b << std::endl;
+}
+
+template <typename Message>
+void WriteMessage(const Message &message)
+{
+}
+
+void FooInt(const int &i)
+{
+    std::cout << i << std::endl;
+}
+
+void FooChar(const char &c)
+{
+    std::cout << c << std::endl;
+}
+
+void Foo(const char&c)
+{
+    FooInt(reinterpret_cast<const int &>(c));
+}
 
 int main(int argc, char **argv)
 {
-    protocol::MessageWrapper<1, Foo, FooSizeGetter> msg;
-    Foo &ffff = msg.Data();
-    msg.Data().bar1 = 2;
-    strcpy(ffff.bar2, "Hello");
+    using MsgFoo1 = Protocol::MessageWrapper<1, Foo1>;
+    using MsgFoo2 = Protocol::MessageWrapper<2, Foo2, Foo2::SizeGetter>;
 
-    protocol::MessageWrapper<2, Foo, FooSizeGetter> msg2;
-    memset(&msg2, 0, sizeof(msg2));
-    msg2.Size();
+    MsgFoo1 foo1;
 
-    protocol::MessageWrapper<2, Foo, FooSizeGetter> msg3;
-    memset(&msg3, 0, sizeof(msg2));
-    msg3.Size();
+    // Buffer buffer;
+    // MsgFoo1 &msgFoo1 = buffer;
+    // msgFoo1->a = 1;
+    // msgFoo1->b = 2;
+    // msgFoo1->c = 3;
+    // WriteBuffer(buffer);
 }
