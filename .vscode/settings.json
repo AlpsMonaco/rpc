@@ -28,7 +28,8 @@
         "type_traits": "cpp",
         "typeinfo": "cpp",
         "*.ipp": "cpp",
-        "numeric": "cpp"
+        "numeric": "cpp",
+        "list": "cpp"
     },
     "code-runner.executorMap": {
         "cpp": "cd $dir && g++ -std=c++17 $fileName -o $fileNameWithoutExt -I$workspaceRoot && $dir$fileNameWithoutExt",

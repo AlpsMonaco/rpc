@@ -55,17 +55,53 @@ void FooChar(const char &c)
     std::cout << c << std::endl;
 }
 
-void Foo(const char&c)
+void Foo(const char &c)
 {
     FooInt(reinterpret_cast<const int &>(c));
 }
 
+class FunctionDecorate
+{
+public:
+    using ExportFunction = std::function<void(const char *)>;
+    FunctionDecorate() {}
+    ~FunctionDecorate() {}
+
+    template <typename T>
+    ExportFunction GetFunction(const std::function<void(const T &t)> &f)
+    {
+        return [f](const char *data) -> void
+        { f(*reinterpret_cast<const T *>(data)); };
+    }
+
+protected:
+};
+std::function<void(const char *)> f;
+
+class FunctionConvert
+{
+public:
+    using ExportFunction = std::function<void(const char *)>;
+
+    template <typename T>
+    static ExportFunction GetFunction(const std::function<void(const T &t)> &f)
+    {
+        return [f](const char *data) -> void
+        { f(*reinterpret_cast<const T *>(data)); };
+    }
+};
+
+void FooNothing()
+{
+    f = FunctionConvert::GetFunction<int>(FooInt);
+}
+
 int main(int argc, char **argv)
 {
-    using MsgFoo1 = Protocol::MessageWrapper<1, Foo1>;
-    using MsgFoo2 = Protocol::MessageWrapper<2, Foo2, Foo2::SizeGetter>;
 
-    MsgFoo1 foo1;
+    FooNothing();
+    char a[] = {6, 0, 0, 0};
+    f(a);
 
     // Buffer buffer;
     // MsgFoo1 &msgFoo1 = buffer;
