@@ -58,19 +58,19 @@ namespace rpc
         class MessageWrapper
         {
         public:
-            using Message = MessageType;
+            using Handler = std::function<void(const MessageWrapper &)>;
 
             static Protocol::Cmd Cmd() { return cmd; }
 
-            inline MessageType &Data() { return msg_; }
-            inline const MessageType &Data() const { return msg_; }
+            inline operator MessageType &() { return msg_; }
+            inline operator const MessageType &() { return msg_; }
 
             operator Bytes()
             {
                 size_ = Protocol::headerLength + GetSize();
                 cmd_ = Cmd();
                 ASSERT(size_ <= Protocol::maxSize, "total size should smaller than maxSize");
-                return Bytes(reinterpret_cast<const char *>(this), Size());
+                return Bytes(reinterpret_cast<const char *>(this), size_);
             }
 
             MessageType *operator->() { return &msg_; }
@@ -95,7 +95,7 @@ namespace rpc
                 return size;
             }
 
-            inline typename Protocol::Size GetSize() { return const_cast<const MessageWrapper &>(*this).Size(); }
+            inline typename Protocol::Size GetSize() { return const_cast<const MessageWrapper &>(*this).GetSize(); }
         };
 
         class MessageHandler
@@ -106,7 +106,7 @@ namespace rpc
             MessageHandler() {}
             ~MessageHandler() {}
 
-            inline void Add(const typename Protocol::Cmd cmd, const Callback &callback) { callbacks_.emplace_back(cmd, callback); }
+            inline void Add(const typename Protocol::Cmd cmd, const Callback &callback) { callbacks_.emplace(cmd, callback); }
             inline Callback &operator[](const typename Protocol::Cmd cmd) { return callbacks_[cmd]; }
 
             template <typename T>
@@ -120,36 +120,22 @@ namespace rpc
             std::map<typename Protocol::Cmd, Callback> callbacks_;
         };
 
-        // class Packet
-        // {
-        // public:
-        //     template <typename T>
-        //     operator const T() const = delete;
-        //     template <typename T>
-        //     operator T() = delete;
+        class FlexibleBuffer
+        {
+        public:
+            template <typename T>
+            operator const T() const = delete;
+            template <typename T>
+            operator T() = delete;
 
-        //     template <typename T>
-        //     operator const T &() const { return *reinterpret_cast<const T *>(this); }
-        //     template <typename T>
-        //     operator T &() { return *reinterpret_cast<T *>(this); }
+            template <typename T>
+            operator const T &() const { return *reinterpret_cast<const T *>(this); }
+            template <typename T>
+            operator T &() { return *reinterpret_cast<T *>(this); }
 
-        //     inline typename Protocol::Size Size()
-        //     {
-        //         ASSERT(IsSizeTypeUnsigned(), "Protocol::SizeType should be an unsigned type");
-        //         return size_;
-        //     }
-
-        //     inline typename Protocol::Size Size() const { return const_cast<Packet &>(*this).Size(); }
-        //     inline typename Protocol::Cmd Cmd() { return cmd_; }
-        //     inline typename Protocol::Cmd Cmd() const { return const_cast<Packet &>(*this).Cmd(); }
-
-        // protected:
-        //     typename Protocol::Size size_;
-        //     typename Protocol::Cmd cmd_;
-        //     char body_[Protocol::bodySize];
-        // };
-
-        // using ReadBuffer = Packet;
+        protected:
+            char buffer_[Protocol::maxSize];
+        };
     };
 }
 

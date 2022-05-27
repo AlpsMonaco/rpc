@@ -9,13 +9,16 @@
                 "-std=c++17",
                 "-I",
                 "${workspaceFolder}",
+                "-I",
+                "${workspaceFolder}/3rdparty/asio/asio/include",
                 "-g",
-                "${file}",
+                "${workspaceFolder}/test/main.cpp",
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
+                "${workspaceFolder}/test/main",
+                "-lpthread"
             ],
             "options": {
-                "cwd": "${fileDirname}"
+                "cwd": "${workspaceFolder}/test"
             },
             "problemMatcher": [
                 "$gcc"

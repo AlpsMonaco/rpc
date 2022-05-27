@@ -1,112 +1,42 @@
+#include "include/rpc/server.h"
 #include <iostream>
-#include <functional>
-#include <string.h>
-#include "include/rpc/protocol.h"
 
-using Protocol = rpc::Protocol<uint32_t, uint32_t>;
-// using Buffer = Protocol::Packet;
+using namespace std;
 
-struct Foo1
+using Protocol = rpc::Protocol<unsigned short, unsigned short>;
+using Server = rpc::Server<Protocol>;
+
+struct Foo
 {
-    unsigned long long a;
-    unsigned short b;
-    char c;
+    unsigned short i;
+    unsigned long j;
 };
 
-struct Foo2
+using MsgFoo = Protocol::MessageWrapper<1, Foo>;
+
+void PrintFoo(const MsgFoo &foo)
 {
-    unsigned short a;
-    char c[30];
+    cout << foo->i << endl;
+    cout << foo->j << endl;
+}
 
-    struct SizeGetter
+void Bar(const Protocol::Bytes &b)
+{
+    for (int i = 0; i < b.Size(); i++)
     {
-        size_t operator()(const Foo2 &foo2) { return sizeof(foo2); }
-    };
-
-    operator int()
-    {
-        return *reinterpret_cast<int *>(c);
+        cout << static_cast<unsigned int>(static_cast<unsigned char>(b.Data()[i])) << endl;
     }
-};
-
-void PrintFoo2(const Foo2 &foo2, const int &b)
-{
-    std::cout << foo2.a << " " << foo2.c << std::endl;
-}
-
-void PrintInt(const int &a, const int &b)
-{
-    std::cout << a << std::endl;
-    std::cout << b << std::endl;
-}
-
-template <typename Message>
-void WriteMessage(const Message &message)
-{
-}
-
-void FooInt(const int &i)
-{
-    std::cout << i << std::endl;
-}
-
-void FooChar(const char &c)
-{
-    std::cout << c << std::endl;
-}
-
-void Foo(const char &c)
-{
-    FooInt(reinterpret_cast<const int &>(c));
-}
-
-class FunctionDecorate
-{
-public:
-    using ExportFunction = std::function<void(const char *)>;
-    FunctionDecorate() {}
-    ~FunctionDecorate() {}
-
-    template <typename T>
-    ExportFunction GetFunction(const std::function<void(const T &t)> &f)
-    {
-        return [f](const char *data) -> void
-        { f(*reinterpret_cast<const T *>(data)); };
-    }
-
-protected:
-};
-std::function<void(const char *)> f;
-
-class FunctionConvert
-{
-public:
-    using ExportFunction = std::function<void(const char *)>;
-
-    template <typename T>
-    static ExportFunction GetFunction(const std::function<void(const T &t)> &f)
-    {
-        return [f](const char *data) -> void
-        { f(*reinterpret_cast<const T *>(data)); };
-    }
-};
-
-void FooNothing()
-{
-    f = FunctionConvert::GetFunction<int>(FooInt);
 }
 
 int main(int argc, char **argv)
 {
-
-    FooNothing();
-    char a[] = {6, 0, 0, 0};
-    f(a);
-
-    // Buffer buffer;
-    // MsgFoo1 &msgFoo1 = buffer;
-    // msgFoo1->a = 1;
-    // msgFoo1->b = 2;
-    // msgFoo1->c = 3;
-    // WriteBuffer(buffer);
+    Server server("127.0.0.1", 8888);
+    server.Bind<MsgFoo>(PrintFoo);
+    server.Start();
+    MsgFoo msgFoo;
+    msgFoo->i = 1;
+    msgFoo->j = 2;
+    PrintFoo(msgFoo);
+    Bar(msgFoo);
+    Foo &foo = msgFoo;
 }
