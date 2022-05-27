@@ -1,42 +1,36 @@
 #include "include/rpc/server.h"
+#include "include/rpc/session.h"
 #include <iostream>
+#include <string_view>
+#include <memory>
 
 using namespace std;
 
 using Protocol = rpc::Protocol<unsigned short, unsigned short>;
 using Server = rpc::Server<Protocol>;
+using Session = rpc::Session<Protocol>;
 
-struct Foo
+struct FooString
 {
-    unsigned short i;
-    unsigned long j;
+    long long i;
+    unsigned char str_size;
+    char str[255];
+
+    struct SizeGetter
+    {
+        Protocol::Size operator()(const FooString &t) const { return sizeof(t.i) + sizeof(t.str_size) + t.str_size; }
+    };
 };
 
-using MsgFoo = Protocol::MessageWrapper<1, Foo>;
+using MsgFooString = Protocol::MessageWrapper<0x01, FooString, FooString::SizeGetter>;
 
-void PrintFoo(const MsgFoo &foo)
+int main()
 {
-    cout << foo->i << endl;
-    cout << foo->j << endl;
-}
-
-void Bar(const Protocol::Bytes &b)
-{
-    for (int i = 0; i < b.Size(); i++)
-    {
-        cout << static_cast<unsigned int>(static_cast<unsigned char>(b.Data()[i])) << endl;
-    }
-}
-
-int main(int argc, char **argv)
-{
-    Server server("127.0.0.1", 8888);
-    server.Bind<MsgFoo>(PrintFoo);
-    server.Start();
-    MsgFoo msgFoo;
-    msgFoo->i = 1;
-    msgFoo->j = 2;
-    PrintFoo(msgFoo);
-    Bar(msgFoo);
-    Foo &foo = msgFoo;
+    Server server("127.0.0.1", 12345);
+    server.Bind<MsgFooString>(
+        [](const MsgFooString &msg, Session &session) -> void
+        {
+            std::cout << msg->i << std::endl;
+            std::cout << std::string_view(msg->str, msg->str_size) << std::endl;
+        });
 }

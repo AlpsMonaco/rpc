@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 #include <map>
+#include <functional>
 #include "util.h"
 
 namespace rpc
@@ -58,8 +59,6 @@ namespace rpc
         class MessageWrapper
         {
         public:
-            using Handler = std::function<void(const MessageWrapper &)>;
-
             static Protocol::Cmd Cmd() { return cmd; }
 
             inline operator MessageType &() { return msg_; }
@@ -98,10 +97,30 @@ namespace rpc
             inline typename Protocol::Size GetSize() { return const_cast<const MessageWrapper &>(*this).GetSize(); }
         };
 
+        struct Packet
+        {
+            typename Protocol::Size size;
+            typename Protocol::Cmd cmd;
+            char data[Protocol::bodySize];
+
+            static const Packet &Cast(const char *p)
+            {
+                return *reinterpret_cast<const Packet *>(p);
+            }
+        };
+
+        template <typename SessionType>
         class MessageHandler
         {
         public:
-            using Callback = std::function<void(const char *)>;
+            using Callback = std::function<void(const Packet &, SessionType &)>;
+            using SharedPtr = std::shared_ptr<MessageHandler>;
+
+            template <typename Message>
+            struct Handler
+            {
+                using Type = std::function<void(const Message &, SessionType &)>;
+            };
 
             MessageHandler() {}
             ~MessageHandler() {}
@@ -109,11 +128,11 @@ namespace rpc
             inline void Add(const typename Protocol::Cmd cmd, const Callback &callback) { callbacks_.emplace(cmd, callback); }
             inline Callback &operator[](const typename Protocol::Cmd cmd) { return callbacks_[cmd]; }
 
-            template <typename T>
-            static Callback Wrap(const std::function<void(const T &t)> &f)
+            template <typename Message>
+            static Callback Wrap(const typename Handler<Message>::Type &f)
             {
-                return [f](const char *data) -> void
-                { f(*reinterpret_cast<const T *>(data)); };
+                return [f](const Packet &packet, SessionType &session) -> void
+                { f(*reinterpret_cast<const Message *>(&packet), session); };
             }
 
         protected:
@@ -136,6 +155,8 @@ namespace rpc
         protected:
             char buffer_[Protocol::maxSize];
         };
+
+        using Buffer = FlexibleBuffer;
     };
 }
 
