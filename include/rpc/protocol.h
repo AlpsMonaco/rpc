@@ -152,6 +152,9 @@ namespace rpc
             template <typename T>
             operator T &() { return *reinterpret_cast<T *>(this); }
 
+            char *Get() { return buffer_; }
+            const char *Get() const { return buffer_; }
+
         protected:
             char buffer_[Protocol::maxSize];
         };

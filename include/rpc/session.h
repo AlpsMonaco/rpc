@@ -29,12 +29,26 @@ namespace rpc
         inline void Start() { OnRead(); }
         inline void Close() { socket_.close(); }
 
+        typename Protocol::Buffer WriteBuffer() { return writeBuffer_; }
+        void Write(const typename Protocol::Bytes &bytes)
+        {
+            asio::async_write(
+                socket_,
+                asio::buffer(bytes.Data(), bytes.Size()),
+                [this](const asio::error_code &ec, size_t) -> void
+                {
+                    if (ec)
+                        errorHandler_(ec);
+                });
+        }
+
         asio::ip::tcp::socket &Socket() { return socket_; }
 
     protected:
         asio::ip::tcp::socket socket_;
         typename MessageHandler::SharedPtr handler_;
         typename Protocol::Buffer buffer_;
+        typename Protocol::Buffer writeBuffer_;
         size_t readSize_;
         size_t extraOffset_;
         std::function<void(const asio::error_code &ec)> errorHandler_;
@@ -94,6 +108,18 @@ namespace rpc
 
         void OnRead()
         {
+            socket_.async_read_some(
+                asio::buffer(GetNextBuffer(), GetNextSize()),
+                [&](const asio::error_code &ec, size_t bytes) -> void
+                {
+                    if (ec)
+                        errorHandler_(ec);
+                    else
+                    {
+                        ReadBytes(bytes);
+                        OnRead();
+                    }
+                });
         }
     };
 }

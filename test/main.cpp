@@ -32,5 +32,8 @@ int main()
         {
             std::cout << msg->i << std::endl;
             std::cout << std::string_view(msg->str, msg->str_size) << std::endl;
+            MsgFooString &ret = session.WriteBuffer();
+            ret = msg;
+            session.Write(ret);
         });
 }
