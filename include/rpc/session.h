@@ -14,10 +14,15 @@ namespace rpc
     public:
         using MessageHandler = typename Protocol::MessageHandler<Session>;
 
-        Session(const typename MessageHandler::SharedPtr &handler,
-                asio::io_service &ios)
+        Session(
+            const typename MessageHandler::SharedPtr &handler,
+            asio::io_service &ios,
+            const std::function<void(const asio::error_code &ec)> &errorHandler = [](const asio::error_code &ec) -> void {})
             : handler_(handler),
-              socket_(ios) {}
+              socket_(ios),
+              errorHandler_(errorHandler)
+        {
+        }
 
         ~Session() {}
 
@@ -32,6 +37,7 @@ namespace rpc
         typename Protocol::Buffer buffer_;
         size_t readSize_;
         size_t extraOffset_;
+        std::function<void(const asio::error_code &ec)> errorHandler_;
 
         inline char *GetNextBuffer() { return buffer_.Get() + readSize_; }
         inline size_t GetNextSize() { return Protocol::PacketSize - readSize_; }
