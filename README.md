@@ -97,7 +97,7 @@ server.Bind<MsgFoo1>(
 const char *const IP = "127.0.0.1";
 unsigned short port = 8890;
 
-// construct with server addredd.
+// construct with server address.
 Client client(IP, port);
 
 // could only bind message callback by struct wrapped by rpc::Protocol::MessageWrapper,
