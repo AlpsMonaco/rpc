@@ -27,7 +27,11 @@ namespace rpc
             ios_.run();
         }
 
-        void Stop() {}
+        void Stop()
+        {
+            acceptor_.close();
+            ios_.stop();
+        }
 
         template <typename Message>
         void Bind(const typename ServerSession::MessageHandler::Handler<Message>::Type &handler)

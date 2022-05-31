@@ -16,7 +16,7 @@ namespace rpc
                                                       ios_(),
                                                       msgHandler_(std::make_shared<typename ClientSession::MessageHandler>()),
                                                       errorHandler_([](const asio::error_code &) -> void {}),
-                                                      session_(std::make_shared<ClientSession>(msgHandler_, ios_,errorHandler_))
+                                                      session_(std::make_shared<ClientSession>(msgHandler_, ios_, errorHandler_))
         {
         }
         ~Client() {}
@@ -24,7 +24,7 @@ namespace rpc
         void Start()
         {
             session_->Socket().async_connect(endpoint_, [this](const asio::error_code &ec) -> void
-                                            {
+                                             {
             if (ec) {
                 errorHandler_(ec);
             } else {
@@ -33,7 +33,11 @@ namespace rpc
             ios_.run();
         }
 
-        inline void Close() { session_->Close(); }
+        inline void Close()
+        {
+            session_->Close();
+            ios_.stop();
+        }
 
         inline void SetErrorHandler(const std::function<
                                     void(const asio::error_code &)> &handler)
@@ -53,7 +57,7 @@ namespace rpc
             session_->Send(bytes);
         }
 
-        inline typename Protocol::Buffer& WriteBuffer() { return session_->WriteBuffer(); }
+        inline typename Protocol::Buffer &WriteBuffer() { return session_->WriteBuffer(); }
 
     protected:
         asio::ip::tcp::endpoint endpoint_;

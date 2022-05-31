@@ -65,25 +65,28 @@ int main(int argc, char **argv)
             // all classes/struct wrapped by MessageWrapper has converter by default.
             session.Write(ret2);
         });
-    std::thread([&]() -> void
-                { server.Start(); })
-        .detach();
+    std::thread serverThread([&]() -> void
+                             { server.Start(); });
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
     Client client(IP, port);
     client.SetErrorHandler([](const asio::error_code &ec) -> void
                            { std::cout << ec << " " << ec.message() << std::endl; });
     client.Bind<MsgFoo2>([](const MsgFoo2 &req, Session &session) -> void
-    {
+                         {
             std::string_view sv(req->text, req->textSize);
-            std::cout << sv << std::endl; 
-    });
+            std::cout << sv << std::endl; });
 
-    std::thread([&]() -> void{ client.Start(); }).detach();
+    std::thread clientThread([&]() -> void
+                             { client.Start(); });
     MsgFoo1 &msg = client.WriteBuffer();
     msg->i = 1;
     msg->d = 2;
     std::this_thread::sleep_for(std::chrono::seconds(1));
     client.Send(msg);
-    std::this_thread::sleep_for(std::chrono::seconds(100));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    server.Stop();
+    client.Close();
+    clientThread.join();
+    serverThread.join();
 }
