@@ -64,7 +64,7 @@ Based on asio,```rpc::Server``` has a nice speed.
 const char *const IP = "127.0.0.1";
 unsigned short port = 8890;
 
-// specify listen addredd.
+// specify listen address.
 Server server(IP, port);
 
 // could only bind message callback by struct wrapped by rpc::Protocol::MessageWrapper,
