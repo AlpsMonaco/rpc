@@ -125,8 +125,13 @@ namespace rpc
             MessageHandler() {}
             ~MessageHandler() {}
 
-            inline void Add(const typename Protocol::Cmd cmd, const Callback &callback) { callbacks_.emplace(cmd, callback); }
             inline Callback &operator[](const typename Protocol::Cmd cmd) { return callbacks_[cmd]; }
+
+            template <typename Message>
+            inline void Bind(const typename Handler<Message>::Type &handler)
+            {
+                callbacks_.emplace(Message::Cmd(), Wrap<Message>(handler));
+            }
 
             template <typename Message>
             static Callback Wrap(const typename Handler<Message>::Type &f)

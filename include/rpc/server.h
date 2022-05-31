@@ -2,6 +2,7 @@
 #define _RPC_SERVER_H_
 
 #include "session.h"
+#include <iostream>
 
 namespace rpc
 {
@@ -14,8 +15,8 @@ namespace rpc
         Server(const char *addr, unsigned short port) : endpoint_(asio::ip::address::from_string(addr), port),
                                                         ios_(),
                                                         acceptor_(ios_, endpoint_),
-                                                        handler_(std::make_shared<typename ServerSession::MessageHandler>()),
-                                                        errorHandler_([](const asio::error_code &) -> void {})
+                                                        errorHandler_([](const asio::error_code &) -> void {}),
+                                                        handler_(std::make_shared<typename ServerSession::MessageHandler>())
         {
         }
         ~Server() {}
@@ -31,8 +32,7 @@ namespace rpc
         template <typename Message>
         void Bind(const typename ServerSession::MessageHandler::Handler<Message>::Type &handler)
         {
-            handler_->Add(Message::Cmd(),
-                          ServerSession::MessageHandler::template Wrap<Message>(handler));
+            handler_->template Bind<Message>(handler);
         }
 
         inline void SetErrorHandler(const std::function<void(const asio::error_code &)> &handler)
@@ -47,12 +47,12 @@ namespace rpc
         asio::io_service ios_;
         asio::ip::tcp::acceptor acceptor_;
         typename ServerSession::MessageHandler::SharedPtr handler_;
-        std::function<void(const asio::error_code &ec)> errorHandler_;
+        std::function<void(const asio::error_code &)> errorHandler_;
 
         void OnAccept()
         {
             std::shared_ptr<ServerSession> session =
-                std::make_shared<ServerSession>(handler_, ios_);
+                std::make_shared<ServerSession>(handler_, ios_, errorHandler_);
             acceptor_.async_accept(session->Socket(),
                                    [this, session](const asio::error_code &ec) -> void
                                    {

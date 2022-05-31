@@ -1,39 +1,86 @@
 #include "include/rpc/server.h"
 #include "include/rpc/session.h"
+#include "include/rpc/client.h"
 #include <iostream>
-#include <string_view>
-#include <memory>
+#include <string>
 
-using namespace std;
-
+// All relevant classes is implemented with rpc::Protocol.
 using Protocol = rpc::Protocol<unsigned short, unsigned short>;
 using Server = rpc::Server<Protocol>;
+using Client = rpc::Client<Protocol>;
 using Session = rpc::Session<Protocol>;
 
-struct FooString
+struct Foo1
 {
-    long long i;
-    unsigned char str_size;
-    char str[255];
+    int i;
+    double d;
+};
+
+struct Foo2
+{
+    int i;
+    unsigned short textSize;
+    char text[120];
 
     struct SizeGetter
     {
-        Protocol::Size operator()(const FooString &t) const { return sizeof(t.i) + sizeof(t.str_size) + t.str_size; }
+        unsigned short operator()(const Foo2 &foo) const
+        {
+            return sizeof(foo.i) + sizeof(foo.textSize) + foo.textSize;
+        }
     };
 };
 
-using MsgFooString = Protocol::MessageWrapper<0x01, FooString, FooString::SizeGetter>;
+// wrap your own class with Protocol::MessageWrapper.
 
-int main()
+// Use sizeof() to calculate wrapped struct by default.
+using MsgFoo1 = Protocol::MessageWrapper<0x01, Foo1>;
+
+// If the size of wrapped struct is variable,you could specify a SizeGetter to calculate the message.
+using MsgFoo2 = Protocol::MessageWrapper<0x02, Foo2, Foo2::SizeGetter>;
+
+int main(int argc, char **argv)
 {
-    Server server("127.0.0.1", 12345);
-    server.Bind<MsgFooString>(
-        [](const MsgFooString &msg, Session &session) -> void
+    const char *const IP = "127.0.0.1";
+    unsigned short port = 8890;
+
+    Server server(IP, port);
+    server.Bind<MsgFoo1>(
+        [](const MsgFoo1 &req, Session &session) -> void
         {
-            std::cout << msg->i << std::endl;
-            std::cout << std::string_view(msg->str, msg->str_size) << std::endl;
-            MsgFooString &ret = session.WriteBuffer();
-            ret = msg;
-            session.Write(ret);
+            std::cout << req->i << std::endl;
+            std::cout << req->d << std::endl;
+
+            // every session have a buffer which is large to max protocol size.
+            // also it is concurrent safe.
+            MsgFoo2 &ret2 = session.WriteBuffer();
+            ret2->i = 3;
+            static const char v[] = "Hello";
+            strcpy(ret2->text, v);
+            ret2->textSize = strlen(v);
+
+            // only class with Bytes() convert could be sent.
+            // all classes/struct wrapped by MessageWrapper has converter by default.
+            session.Write(ret2);
         });
+    std::thread([&]() -> void
+                { server.Start(); })
+        .detach();
+
+    Client client(IP, port);
+    client.Bind<MsgFoo2>([](const MsgFoo2 &req, Session &session) -> void
+                         {
+            std::string_view sv(req->text, req->textSize);
+            std::cout << sv << std::endl; });
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::thread([&]() -> void
+                { client.Start(); })
+        .detach();
+    MsgFoo1 &msg = client.WriteBuffer();
+    msg->i = 1;
+    msg->d = 2;
+    client.Send(msg);
+
+    std::this_thread::sleep_for(std::chrono::seconds(100));
 }
