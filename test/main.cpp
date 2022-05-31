@@ -45,6 +45,8 @@ int main(int argc, char **argv)
     unsigned short port = 8890;
 
     Server server(IP, port);
+    server.SetErrorHandler([](const asio::error_code &ec) -> void
+                           { std::cout << ec << " " << ec.message() << std::endl; });
     server.Bind<MsgFoo1>(
         [](const MsgFoo1 &req, Session &session) -> void
         {
@@ -67,20 +69,21 @@ int main(int argc, char **argv)
                 { server.Start(); })
         .detach();
 
-    Client client(IP, port);
-    client.Bind<MsgFoo2>([](const MsgFoo2 &req, Session &session) -> void
-                         {
-            std::string_view sv(req->text, req->textSize);
-            std::cout << sv << std::endl; });
-
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    std::thread([&]() -> void
-                { client.Start(); })
-        .detach();
+    Client client(IP, port);
+    client.SetErrorHandler([](const asio::error_code &ec) -> void
+                           { std::cout << ec << " " << ec.message() << std::endl; });
+    client.Bind<MsgFoo2>([](const MsgFoo2 &req, Session &session) -> void
+    {
+            std::string_view sv(req->text, req->textSize);
+            std::cout << sv << std::endl; 
+    });
+
+    std::thread([&]() -> void{ client.Start(); }).detach();
     MsgFoo1 &msg = client.WriteBuffer();
     msg->i = 1;
     msg->d = 2;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     client.Send(msg);
-
     std::this_thread::sleep_for(std::chrono::seconds(100));
 }
