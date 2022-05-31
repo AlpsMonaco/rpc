@@ -27,7 +27,7 @@ template <typename Protocol::Cmd cmd, typename MessageType,
 
 
 
-Wrap you class with Cmd,Struct and SizeGetter(optional)  
+Wrap your class with Cmd,Struct and SizeGetter(optional)  
 ```c++
 struct Foo1
 {
