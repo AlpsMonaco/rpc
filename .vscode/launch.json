@@ -28,6 +28,18 @@
                 }
             ],
             "preLaunchTask": "C/C++: cpp 生成活动文件"
+        },
+        {
+            "name": "(Windows) 启动",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/main",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/test",
+            "environment": [],
+            "console": "externalTerminal",
+            "preLaunchTask": "C/C++: cl.exe 生成活动文件"
         }
     ]
 }

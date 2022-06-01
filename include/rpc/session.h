@@ -3,7 +3,6 @@
 
 #include "protocol.h"
 #include <asio.hpp>
-#include <iostream>
 #include <fstream>
 
 namespace rpc
@@ -14,7 +13,7 @@ namespace rpc
         : public std::enable_shared_from_this<Session<Protocol>>
     {
     public:
-        using MessageHandler = typename Protocol::MessageHandler<Session>;
+        using MessageHandler = typename Protocol::template MessageHandler<Session>;
 
         Session(
             const typename MessageHandler::SharedPtr &handler,

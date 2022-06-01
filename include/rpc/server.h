@@ -34,7 +34,7 @@ namespace rpc
         }
 
         template <typename Message>
-        void Bind(const typename ServerSession::MessageHandler::Handler<Message>::Type &handler)
+        void Bind(const typename ServerSession::MessageHandler::template Handler<Message>::Type &handler)
         {
             handler_->template Bind<Message>(handler);
         }
